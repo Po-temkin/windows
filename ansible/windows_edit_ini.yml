@@ -1,0 +1,93 @@
+# Sctipted by:
+#   Po-temkin
+#
+# Tested on:
+#   Ansible: 2.9
+#   Powershell:
+#     Psini: 3.1.3
+#
+#  Name:
+#    windows_edit_ini.yml
+#
+#  Description:
+#    Editing desired ini configuration file
+#    File will be create if it don't exist
+#    You can passing multiptiple values using include_tasks
+#    Supported actions are: edit option(s) in section, get value of section's option, delete option(s) from section and delete whole section(s)
+#    To edit multiple files or sections define values in array instead directly in vars
+#    Expected use for edit one section in one file:
+#
+#    - include_tasks: ./ansible_play/windows/windows_edit_ini.yml
+#      vars:
+#        ini_section: 'section_name'
+#        #ini_section: '{{ item.section }}'
+#        ini_option: '{{ item.option }}'
+#        ini_value: '{{ item.value }}'
+#        ini_path: 'C:\Folder\example.ini'
+#        #ini_path: '{{ item.path }}'
+#        ini_mode: 'set'
+#      loop:
+#        - { section: '', option: 'option_name1', value: 'option_value1', path: 'path1'}
+#        - { section: '', option: 'option_name1', value: 'option_value2', path: 'path2'}
+#      loop_control:
+#        index_var: loop_idx
+#
+#  Input:
+#    ini_path # Path to ini file
+#    ini_section # Name of section in ini file
+#    ini_option # Option of section
+#    ini_value # Value of option; Ignoring if ini_mode = del, so set $null
+#    ini_mode # set - edit option(s) in selected section(s);
+#               get - get value of only one selected option;
+#               delo - delete option(s) in selected section(s)
+#               dels - delete whole selected section(s);
+#    loop_idx # Used to manage file creation
+#
+#  Output:
+#    windows_ini_value # value of selected option
+#
+#  Requirements:
+#    Powershell module:
+#      Psini
+
+---
+
+- name: 'SPL :: Creating {{ ini_path }} if it does not exist'
+  win_file:
+  #ansible.windows.win_file:
+    path: '{{ ini_path }}'
+    state: touch
+  when: loop_idx == 0 and ini_mode == 'set'
+
+- name: 'SPL :: Deleting {{ ini_option }} value from [{{ ini_section }}] section of {{ ini_path }}'
+  #ansible.windows.win_shell
+  win_shell: |
+    Remove-IniEntry -FilePath '{{ ini_path }}' -Sections '{{ ini_section }}' -Keys '{{ ini_option }}' |
+    Out-IniFile '{{ ini_path }}' -Force -Pretty -Loose
+  when: ini_mode == 'delo'
+
+- name: 'SPL :: Deleting [{{ ini_section }}] section from {{ ini_path }}'
+  #ansible.windows.win_shell
+  win_shell: |
+    Remove-IniEntry -FilePath '{{ ini_path }}' -Sections '{{ ini_section }}' |
+    Out-IniFile '{{ ini_path }}' -Force -Pretty -Loose
+  when: ini_mode == 'dels'
+
+- name: 'SPL :: Geting {{ ini_option }} value from [{{ ini_section }}] section of {{ ini_path }}'
+  #ansible.windows.win_shell
+  win_shell: |
+    (Get-IniContent -FilePath '{{ ini_path }}')['{{ ini_section }}']['{{ ini_option }}']
+  register: _windows_ini_out
+  when: ini_mode == 'get'
+
+- name: 'SPL :: Editing [{{ ini_section }}] section of {{ ini_path }} by adding {{ ini_option }}={{ ini_value }}'
+  #ansible.windows.win_shell
+  win_shell: |
+    Set-IniContent -FilePath '{{ ini_path }}' -Sections '{{ ini_section }}' -NameValuePairs @{'{{ ini_option }}'='{{ ini_value }}'} |
+    Out-IniFile '{{ ini_path }}' -Force -Pretty -Loose
+  when: ini_mode == 'set'
+
+- name: 'SPL :: Collecting received value'
+  set_fact:
+    windows_ini_value: '{{ _windows_ini_out.stdout_lines[0] }}'
+  when: ini_mode == 'get'

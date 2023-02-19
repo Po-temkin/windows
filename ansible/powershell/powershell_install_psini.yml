@@ -1,0 +1,45 @@
+# Sctipted by:
+#   Po-temkin
+#
+# Tested on:
+#   Ansible: 2.9
+#
+#  Name:
+#    powershell_install_psini.yml
+#
+#  Description: 
+#    Installing Psini module from archive
+#    This module makes editing INI files more easier
+#    Required for some future tasks
+#
+#  Input:
+#    powershell_psini_zip # ZIP archive with Psini module
+#    powershell_psini_location # ZIP archive location
+#
+#  Output:
+#    -
+
+---
+
+- name: 'Powershell :: Definition of local variables'
+  set_fact:
+    unzip_dest: 'C:\Program Files\WindowsPowerShell\Modules'
+
+- name: 'Powershell :: Copying {{ powershell_psini_zip }}'
+  win_copy:
+  #ansible.windows.win_copy:
+    src: '{{ powershell_psini_location }}\{{ powershell_psini_zip }}'
+    dest: '{{ ansible_env.TEMP }}\{{ powershell_psini_zip }}'
+    remote_src: yes
+
+- name: 'Powershell :: Extracting {{ powershell_psini_zip }}'
+  win_unzip:
+  #community.windows.win_unzip:
+    src: '{{ ansible_env.TEMP }}\{{ powershell_psini_zip }}'
+    dest: '{{ unzip_dest }}'
+    delete_archive: yes
+
+- name: 'Powershell :: Unblocking copied files'
+  #ansible.windows.win_shell:
+  win_shell: |
+    Get-ChildItem -Path '{{ unzip_dest }}' -Recurse | Unblock-File
