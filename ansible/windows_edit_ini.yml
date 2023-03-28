@@ -76,7 +76,7 @@
 - name: 'SPL :: Geting {{ ini_option }} value from [{{ ini_section }}] section of {{ ini_path }}'
   #ansible.windows.win_shell
   win_shell: |
-    Get-IniContent -FilePath '{{ ini_path }}')['{{ ini_section }}']['{{ ini_option }}']
+    (Get-IniContent -FilePath '{{ ini_path }}')['{{ ini_section }}']['{{ ini_option }}']
   register: _windows_ini_out
   when: ini_mode == 'get'
 
